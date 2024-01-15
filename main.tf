@@ -1,7 +1,14 @@
 terraform {
+  required_providers {
+    azurerm = {
+      source  = "hashicorp/azurerm"
+      version = "=3.86.0"
+    }
+  }
 }
 
 provider "azurerm" {
+  skip_provider_registration = true # This is only required when the User, Service Principal, or Identity running Terraform lacks the permissions to register Azure Resource Providers.
   features {
     virtual_machine {
       delete_os_disk_on_deletion = true
@@ -14,6 +21,20 @@ resource "azurerm_resource_group" "power_bi_RG" {
   location = "UK West"
 }
 
+resource "azurerm_virtual_network" "power_BI_VNET" {
+  name                = "power_BI_VNET"
+  address_space       = ["10.0.0.0/16"]
+  location            = azurerm_resource_group.power_bi_RG.location
+  resource_group_name = azurerm_resource_group.power_bi_RG.name
+}
+
+resource "azurerm_subnet" "power_BI_SNET" {
+  name                 = "power_BI_SNET"
+  resource_group_name  = azurerm_resource_group.power_bi_RG.name
+  virtual_network_name = azurerm_virtual_network.power_BI_VNET.name
+  address_prefixes     = ["10.0.2.0/24"]
+}
+
 resource "azurerm_network_interface" "power_BI_NI" {
   name                = "power_BI_NI"
   location            = azurerm_resource_group.power_bi_RG.location
@@ -21,6 +42,7 @@ resource "azurerm_network_interface" "power_BI_NI" {
   ip_configuration {
     name                          = "internal"
     private_ip_address_allocation = "Dynamic"
+    subnet_id                     = azurerm_subnet.power_BI_SNET.id
     public_ip_address_id          = azurerm_public_ip.vm_public_IP.id
   }
 }
@@ -35,13 +57,13 @@ resource "azurerm_public_ip" "vm_public_IP" {
 }
   
 resource "azurerm_windows_virtual_machine" "power_bi_vm" {
-  name                = "power_bi_vm"
+  name                = "power-bi-vm"
   resource_group_name = azurerm_resource_group.power_bi_RG.name
   location            = azurerm_resource_group.power_bi_RG.location
   size                = "Standard_D2s_v3"
 #   take login out of file
-  admin_username      = "klovell96"
-  admin_password      = "VMPowerBI44!!"
+  admin_username      = // insert username
+  admin_password      = // insert password
   network_interface_ids = [
     azurerm_network_interface.power_BI_NI.id,
   ]
@@ -57,6 +79,22 @@ resource "azurerm_windows_virtual_machine" "power_bi_vm" {
     # maybe update SKU?
     sku       = "win10-22h2-pro-g2"
     version   = "latest"
+  }
+
+provisioner "remote-exec" {
+    # provision powerbi
+
+# do we want this one?
+  #   provisioner "file" {
+  #   source      = "script.sh"
+  #   destination = "/tmp/script.sh"
+  # }
+
+ # or this?   
+    inline = [
+      # "puppet apply",
+      # "consul join ${aws_instance.web.private_ip}",
+    ]
   }
 }
 
@@ -74,11 +112,13 @@ resource "azurerm_network_security_rule" "allow_RDP" {
   protocol                    = "Tcp"
   source_port_range           = "*"
   destination_port_range      = "3389"
+  source_address_prefix       = "*"
+  destination_address_prefix  = "*"
   resource_group_name         = azurerm_resource_group.power_bi_RG.name
   network_security_group_name = azurerm_network_security_group.power_bi_SG.name
 }
 
-# output "vm_ip" {
-#   value = ["${azurerm_windows_virtual_machine.power_bi_vm.*.public_ip_address}"]
+output "vm_ip" {
+  value = ["${azurerm_windows_virtual_machine.power_bi_vm.*.public_ip_address}"]
 # might not work as its trying to export all
-# }
+}
