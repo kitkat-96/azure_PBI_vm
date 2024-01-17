@@ -55,19 +55,19 @@ resource "azurerm_public_ip" "vm_public_IP" {
 
   #   create_before_destroy = true - might be needed
 }
-  
+
 resource "azurerm_windows_virtual_machine" "power_bi_vm" {
   name                = "power-bi-vm"
   resource_group_name = azurerm_resource_group.power_bi_RG.name
   location            = azurerm_resource_group.power_bi_RG.location
   size                = "Standard_D2s_v3"
-#   take login out of file
-  admin_username      = // insert username
-  admin_password      = // insert password
+  #   take login out of file
+  admin_username = var.username
+  admin_password = var.password
   network_interface_ids = [
     azurerm_network_interface.power_BI_NI.id,
   ]
-    
+
   os_disk {
     caching              = "ReadWrite"
     storage_account_type = "Standard_LRS"
@@ -77,20 +77,20 @@ resource "azurerm_windows_virtual_machine" "power_bi_vm" {
     publisher = "MicrosoftWindowsDesktop"
     offer     = "Windows-10"
     # maybe update SKU?
-    sku       = "win10-22h2-pro-g2"
-    version   = "latest"
+    sku     = "win10-22h2-pro-g2"
+    version = "latest"
   }
 
-provisioner "remote-exec" {
+  provisioner "remote-exec" {
     # provision powerbi
 
-# do we want this one?
-  #   provisioner "file" {
-  #   source      = "script.sh"
-  #   destination = "/tmp/script.sh"
-  # }
+    # do we want this one?
+    #   provisioner "file" {
+    #   source      = "script.sh"
+    #   destination = "/tmp/script.sh"
+    # }
 
- # or this?   
+    # or this?   
     inline = [
       # "puppet apply",
       # "consul join ${aws_instance.web.private_ip}",
@@ -120,5 +120,5 @@ resource "azurerm_network_security_rule" "allow_RDP" {
 
 output "vm_ip" {
   value = ["${azurerm_windows_virtual_machine.power_bi_vm.*.public_ip_address}"]
-# might not work as its trying to export all
+  # might not work as its trying to export all
 }
