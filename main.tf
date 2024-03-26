@@ -80,22 +80,6 @@ resource "azurerm_windows_virtual_machine" "power_bi_vm" {
     sku     = "win10-22h2-pro-g2"
     version = "latest"
   }
-
-  provisioner "remote-exec" {
-    # provision powerbi
-
-    # do we want this one?
-    #   provisioner "file" {
-    #   source      = "script.sh"
-    #   destination = "/tmp/script.sh"
-    # }
-
-    # or this?   
-    inline = [
-      # "puppet apply",
-      # "consul join ${aws_instance.web.private_ip}",
-    ]
-  }
 }
 
 resource "azurerm_network_security_group" "power_bi_SG" {
@@ -117,6 +101,21 @@ resource "azurerm_network_security_rule" "allow_RDP" {
   resource_group_name         = azurerm_resource_group.power_bi_RG.name
   network_security_group_name = azurerm_network_security_group.power_bi_SG.name
 }
+
+data "azurerm_shared_image_version" "powerbi_vm_image_version" {
+  name = var.powerbi_vm_image_name
+  image_name = var.powerbi_vm_image_image_name
+  gallery_name = var.powerbi_vm_image_gallery_name
+  resource_group_name = data.azurerm_resource_group.power_bi_RG.name
+}
+
+# do i need a resource block in here, as per the below ??
+# resource "azurerm_image" "example" {
+#   name                      = "exampleimage"
+#   location                  = data.azurerm_virtual_machine.example.location
+#   resource_group_name       = data.azurerm_virtual_machine.example.name
+#   source_virtual_machine_id = data.azurerm_virtual_machine.example.id
+# }
 
 output "vm_ip" {
   value = ["${azurerm_windows_virtual_machine.power_bi_vm.*.public_ip_address}"]
